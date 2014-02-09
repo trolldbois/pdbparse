@@ -84,6 +84,7 @@ def rand_str(length):
     alphabet += alphabet.upper()
     return "".join(random.sample(alphabet,length))
 
+
 ARCH_PTR_SIZE = None
 
 snames = {
@@ -272,6 +273,46 @@ base_type_size = {
     "T_WCHAR":     2,
 }
 
+class Record(list):
+    @property
+    def ofs(self):
+        return self[0].ofs
+        
+    def get_size(self):
+        #return sum([el.get_size() for el in self])
+        size = 0
+        ofs = self.ofs
+        # get the meximum offset+size of fields
+        size = max([ ((el.ofs+el.get_size()) - ofs) for el in self])
+        return size
+        
+        
+    def to_string(self, tab='', typedef=False):
+        ret =''
+        if not typedef:
+            ret = '%s%s %s{\n'%(tab, self.type, self.name)
+        for el in self:
+                ret += '%s\n'%(el.to_string(tab=tab+'\t'))
+        if not typedef:
+            ret += '%s};'%(tab)
+        return ret
+
+    def __str__(self):
+        ret = '%s %s{\n'%(self.type, self.name)
+        for el in self:
+            ret += '\t%s\n'%str(el)
+        ret += '};'
+        return ret
+
+
+class Union(Record):
+    name = ''
+    type = 'union'
+
+class Struct(Record):
+    name = ''
+    type = 'struct'
+
 class Member:
     """
     Describes one member of a structure or union. A member is a field received
@@ -302,6 +343,13 @@ class Member:
         else:
             return '{0:<50} {1}'.format(self.member_str(), self.comment_str())
 
+    def to_string(self, tab):
+        if self.suppress:
+            return tab+self.member_str()
+
+        else:
+            return '{0:<50} {1}'.format(tab+self.member_str(), self.comment_str())
+    
     def member_str(self):
         return self.contents
 
@@ -319,6 +367,9 @@ class Member:
             
         # display member's metadata
         return '// offset {0} size {1}'.format(ofs_str, size_str)
+
+    def get_size(self):
+        return self.size
     
     def __len__(self):
         return self.size
@@ -527,7 +578,7 @@ def memb_str(memb, name, off=-1):
         ltype = None
         length = 0
         ofs_str = '%#x' % off
-        size_str = '%#x' % size
+        size_str = ('%#x' % size ) 
         alignment = 0
         if not isinstance(memb,str):
             ltype = memb.leaf_type
@@ -575,6 +626,13 @@ def size_from_offset_map(offset_map, comment_list, offset_of_interest=None):
         tot_size += max ([size_of_one_run(x) for x in runs_ll])
         
     return tot_size
+
+def member_list_from_records(records):
+    """
+    Generate member_list suitable for flstr() from the runs generated in
+    unionize(). Attempt to make acceptable formatting.
+    """
+    return records.to_string(typedef=True).split('\n')
         
 def member_list_from_offset_map(offset_map, leaf_type):
     """
@@ -628,9 +686,126 @@ def is_bitfield(member):
     
     return member.leaf_type == 'LF_BITFIELD'
 
-def member_ofs_appears_later(mbr, members):
-    return len([x for x in members [mbr.index+1:] if x.ofs == mbr.ofs]) > 0
+def first_ofs_appears_later(members):
+    mbr = members[0]
+    for next in members[1:]:
+        if next.ofs < mbr.ofs:
+            raise ValueError('I need non decreasing offsets runs.')
+        elif next.ofs == mbr.ofs:
+            return True
+    return False
+
+def make_sub_runs(members):
+    """Groups sequences of fields using their offsets. Make Struct and Union.""" 
+    if len(members) == 1:
+        ret = Struct()
+        ret.extend(members)
+        return ret
+    # Returns a list of fields ( Members or list)
+    # if a field is an union, the fields will be in a list.
+    if first_ofs_appears_later(members):
+        # we have a union
+        if len(members) == 2:
+            ret = Union()
+            ret.extend([members[0],members[1]])
+            return ret
+        # members need to be limited to current group (non-decreasing index)
+        runs = Union()
+        run = Struct()
+        run.append(members[0])
+        ofs = members[0].ofs
+        for m in members[1:]:
+            if m.ofs > ofs: # OneRun
+                run.append(m)
+            elif m.ofs == ofs:
+                # new member/structure of the union
+                if len(run) == 1:
+                    runs.append(run[0])
+                else:
+                    runs.append(run)
+                run = Struct()
+                run.append(m)
+            else:
+                raise ValueError('I need non decreasing offsets runs.')
+        runs.append(run)
+        fields = Union()
+        # [ lst, lst, lst ]  == field n , lst = structure
+        for sub in runs:
+            if isinstance(sub, Record):
+                sub_fields = make_sub_runs(sub)
+            else:
+                sub_fields = sub
+            fields.append(sub_fields)
+    else:
+        fields = Struct()
+        fields.append(members[0])
+        next_fields = make_sub_runs(members[1:])
+        # [ f, f, union, f, f]
+        if isinstance(next_fields, Union):
+            # FIXME check union or union +struct
+            next_fields = simplify_union(next_fields)
+
+        if isinstance(next_fields, Union):
+            fields.append(next_fields)
+        elif len(next_fields) == 1: # lonely field
+            fields.append(next_fields[0])
+        else: # Structure with fields
+            fields.extend(next_fields)
     
+    return fields
+
+def simplify_union(union):
+    """ if a union field is field n of a structure, fields n+1 have been 
+    aggregated in union. Lets cut them out and put them back in the structure.
+    """
+    # if last structure is bigger, its fields are probably not part of the union
+    last_field = union[-1]
+    if not isinstance(last_field, Record):
+        return union
+    # get size of last field
+    last_size = last_field.get_size()
+    size = 0
+    # if last structure is bigger, its fields are probably not part of the union
+    for st in union[:-1]:
+        size = max(size, st.get_size())
+    if last_size <= size: # other fields are bigger.
+        # bigger fields means its an single union ( ordered PDB records )
+        return union
+    # last union field is bigger. try to cut out some sub fields.
+    # get union offset.
+    ofs = union.ofs
+    break_index = 0
+    # check if last union field 
+    for i,f in enumerate(last_field):
+        f_ofs = f.ofs-ofs
+        if f_ofs == size:
+            # that field ( and following ) is in fact, out of the union.
+            break_index = i
+            break
+    if break_index > 0:
+        # recreate the union
+        new_union = Union()
+        new_union.extend(union[:-1])
+        
+        # add the new smaller last_field of the union
+        if len(last_field[:break_index]) == 1:
+            new_last_field = last_field[0]
+        else:
+            new_last_field = Struct()
+            new_last_field.extend(last_field[:break_index])
+        new_union.append(new_last_field)
+
+        # change the union into fields ( struct() make_sub will cope with that)
+        new_root_fields = Struct()
+        new_root_fields.append(new_union)
+        if len(last_field[break_index:]) == 1:
+            new_root_fields.append(last_field[break_index])
+        else:
+            new_root_fields.extend(last_field[break_index:])
+        return new_root_fields
+
+    return union
+
 def generate_gap_member(ofs, size, gap_ct):
     assert size>0, "invalid size for gap"
     name = 'UINT8 unknown%d[%#x];' % (gap_ct, size)
@@ -776,7 +951,7 @@ def unionize_compute(lf, member_list):
     if lf.leaf_type == 'LF_ENUM':
         s = Solution()
         return s # empty mlist
-        
+
     this_run = OneRun(0)
     gap_ct = 0 # 
     
@@ -815,73 +990,14 @@ def unionize_compute(lf, member_list):
 
     #if lf.name == '_MM_PAGE_ACCESS_INFO_HEADER':
     #    import pdb;pdb.set_trace()
-        
-    runs = list()
-    i = 0
-    while i < member_ct:
-        basembr = members[i]
-        base_ofs_ct = mbr_ct_by_ofs[basembr.ofs]
+    
+    # order members per group of increasing offset
+    records = make_sub_runs(members)
 
-        this_run = OneRun(basembr.ofs)
-        this_run.add_member(basembr)
-
-        i += 1
-        if not (i < member_ct): # walked off end of list
-            break
-
-        # This run goes until
-        #
-        # (a) An offset goes the wrong way, or
-        #
-        # (b) While reading forward through the members, the number of members
-        # occupying the given offset changes, or
-        #
-        # (c) An offset is encountered that is seen further down the in list
-        # of members
-
-        prev_ofs = basembr.ofs
-        m = members[i]
-
-        #if member_ofs_appears_later(m, members):
-        #    runs.append(this_run)
-        #    this_run = OneRun(m.ofs)
-                        
-        while (i < member_ct and prev_ofs < m.ofs):
-            if member_ofs_appears_later(m,members):
-                # offset appears later, m can't be in current run
-                break
-
-            if mbr_ct_by_ofs[m.ofs] != base_ofs_ct and mbr_ct_by_ofs[m.ofs] == 1:
-                # the run's base offset appears a different number of times
-                # than the current offset
-                break
-
-            this_run.add_member(m)
-
-            i += 1
-            if not (i < member_ct): # walked off end of list
-                break
-
-            prev_ofs = m.ofs
-            m = members[i]
-
-        # add remaining members in current run
-        if this_run.members: # transfer any remaining members to offset_map
-            runs.append(this_run)
-            this_run = None
-
-    # move this run over to runs
-    if this_run and this_run.members: 
-        runs.append(this_run)
-
-    # transfer any remaining members to offset_map
-    for r in runs:
-        flush_run_to_map(offset_map, r)
-        
-    new_mlist = member_list_from_offset_map(offset_map, lf.leaf_type)
+    new_mlist = member_list_from_records(records)
 
     s = Solution()
-    s.computed_size = size_from_offset_map(offset_map,s.comments)
+    s.computed_size = records.get_size()
     s.claimed_size  = lf.size
     
     if s.computed_size != s.claimed_size:
@@ -907,7 +1023,11 @@ def flstr(lf):
 
     if sol.comments:
         flstr += '\n'.join(sol.comments) + '\n'
-        
+    
+    
+    if lf.leaf_type in ["LF_STRUCTURE","LF_UNION"]:
+        return '\n'.join(sol.mlist)
+    
     level = 1 # indentation level
     for i,m in enumerate(sol.mlist):
         #eol = '\n' if i < len(sol.mlist)-1 else ''
@@ -1049,6 +1169,9 @@ if __name__ == "__main__":
                                             'IMAGE_FILE_MACHINE_IA64'):
                 print "// Architecture pointer width 8 bytes"
                 ARCH_PTR_SIZE = 8
+            else:
+                sys.stderr.write ("Failed to find arch pointer width. Use the -w option.")
+                raise
 
         except:
             sys.stderr.write ("Failed to find arch pointer width. Use the -w option.")
