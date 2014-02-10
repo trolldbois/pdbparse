@@ -638,12 +638,20 @@ def size_from_offset_map(offset_map, comment_list, offset_of_interest=None):
         
     return tot_size
 
-def member_list_from_records(records):
+def member_list_from_records(lf, records):
     """
     Generate member_list suitable for flstr() from the runs generated in
     unionize(). Attempt to make acceptable formatting.
     """
+    if isinstance(records, Union):
+        if lf.leaf_type == 'LF_UNION':
+            return records.to_string(typedef=True).split('\n')
+        else:
+            return records.to_string(typedef=False).split('\n')
     return records.to_string(typedef=True).split('\n')
+        
+    
+    
         
 def member_list_from_offset_map(offset_map, leaf_type):
     """
@@ -1005,7 +1013,7 @@ def unionize_compute(lf, member_list):
     # order members per group of increasing offset
     records = make_sub_runs(members)
 
-    new_mlist = member_list_from_records(records)
+    new_mlist = member_list_from_records(lf, records)
 
     s = Solution()
     s.computed_size = records.get_size()
