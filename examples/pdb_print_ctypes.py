@@ -109,6 +109,14 @@ ctype_msvc  = {
     "T_32PUQUAD": "PULONGLONG",
     "T_32PUSHORT": "PUSHORT",
     "T_32PVOID": "PVOID",
+    "T_64PULONG": "PULONG",
+    "T_64PRCHAR": "PUCHAR",
+    "T_64PUCHAR": "PUCHAR",
+    "T_64PULONG": "PULONG",
+    "T_64PLONG": "PLONG",
+    "T_64PUQUAD": "PULONGLONG",
+    "T_64PQUAD": "PLONGLONG",
+    "T_64PUSHORT": "PUSHORT",
     "T_64PVOID": "PVOID64",
     "T_INT4": "LONG",
     "T_INT8": "LONGLONG",
@@ -171,6 +179,7 @@ def print_basic_types():
     print "typedef   int8_t      CHAR;"
     print "typedef   int8_t      INT8;"
     print
+    print "typedef uint16_t     WCHAR;"
     print "typedef uint16_t    UINT16;"
     print "typedef uint16_t    USHORT;"
     print "typedef  int16_t     SHORT;"
@@ -186,6 +195,8 @@ def print_basic_types():
     print "typedef uint64_t   PVOID64, PPVOID64;"
     print "typedef uint32_t   PVOID32, PPVOID32;"
     print "typedef     void      VOID;"
+    print
+    print "typedef  double     DOUBLE; // not true but -hey FIXME"
     print
     print "#ifdef WINDOWS_USE_32_BIT_POINTERS ///////////////"
     print "// pointers occupy exactly 32 bits"
@@ -1218,16 +1229,21 @@ if __name__ == "__main__":
         if "unnamed" in s.name: continue
         dep_graph[s.name] = struct_dependencies(s)
         names[s.name] = s
+    enums_names = [e.name for e in enums]
     dep_graph.update((e.name,[]) for e in enums)
-    structs = topological_sort(dep_graph)
-    structs.reverse()
+    sorted_structs = topological_sort(dep_graph)
+    sorted_structs.reverse()
+    
+    #import code 
+    #code.interact(local=locals())
 
     print "/******* Enumerations *******/"
     for e in enums:
         enum_pretty_str(e)
 
     print "/*******  Structures  *******/"
-    for n in names:
+    for n in sorted_structs:
+        if n in enums_names: continue
         s = names[n]
         if "unnamed" in s.name: continue
         if s.leaf_type == "LF_ENUM": continue
