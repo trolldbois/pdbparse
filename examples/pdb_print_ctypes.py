@@ -3,48 +3,6 @@
 """
 This script prints the C definitions of the items found in a PDB file.
 
-The script works correctly for nearly all definitions, but it does fail on
-more complex structures/unions containing nested structs/unions. The sizes and
-offsets used by this script seem to be correct, but sometimes it just can't
-make sense of them. Here's an example failure (from Vista sp1 32 bit - ntdll.pdb):
-
-struct _DISPATCHER_HEADER { // 0x10 bytes
- // Size vs offset misalignment at offset 0x1 (curr size 0x4)
- // Size vs offset misalignment at offset 0x2 (curr size 0x5)
- // Size vs offset misalignment at offset 0x3 (curr size 0x6)
- // Size vs offset misalignment at offset 0x4 (curr size 0x7)
- // ************ INCORRECT SIZE *************************
- // claimed in PDB: 0x10, calculated: 0x13
-    /*
-    union {
-       UCHAR Type;                                        // offset   0x0 size   0x1
-       volatile LONG Lock;                                // offset   0x0 size   0x4
-    };
-    union {
-       UCHAR Abandoned;                                   // offset   0x1 size   0x1
-       UCHAR Absolute;                                    // offset   0x1 size   0x1
-       UCHAR NpxIrql;                                     // offset   0x1 size   0x1
-       UCHAR Signalling;                                  // offset   0x1 size   0x1
-    };
-    union {
-       UCHAR Size;                                        // offset   0x2 size   0x1
-       UCHAR Hand;                                        // offset   0x2 size   0x1
-    };
-    union {
-       UCHAR Inserted;                                    // offset   0x3 size   0x1
-       UCHAR DebugActive;                                 // offset   0x3 size   0x1
-       UCHAR DpcActive;                                   // offset   0x3 size   0x1
-    };
-    LONG SignalState;                                  // offset   0x4 size   0x4
-    LIST_ENTRY WaitListHead;                           // offset   0x8 size   0x8
-    */
-    UINT8 blob[0x10]; // print_ctypes.py validation failure
- 
- } __attribute__((packed));
-
-
-The items at common offsets (e.g. 0x1) should probably be in separate
-structures within a union.
 """
 
 import sys
@@ -62,11 +20,16 @@ def topological_sort(graph):
     for node in graph:
         count[node] = 0
     for node in graph:
-        for successor in graph[node]:
+        for successor in list(graph[node]):
+            if successor == node:
+                graph[node].remove(node)
+                continue # handled with changing the member type
             count[successor] += 1
 
-    ready = [ node for node in graph if count[node] == 0 ]
-    
+    ready = [ node for node in graph if count[node] == 0 and not graph[node]]
+    #print
+    #print 'ready'
+    #print ready
     result = [ ]
     while ready:
         node = ready.pop(-1)
@@ -76,8 +39,51 @@ def topological_sort(graph):
             count[successor] -= 1
             if count[successor] == 0:
                 ready.append(successor)
+                result.append(successor)
+                #print 'removed',successor
     
-    return result
+    result = list(set(result))
+    
+    # no successors.
+    leafs = [ node for node in graph if not graph[node] and node not in result]
+    leafs.sort(key=lambda x: count[x])
+    #print
+    #print 'leafs'
+    #print leafs
+    
+    near_leafs = list(set(graph) - set(result) - set(leafs))
+    near_leafs.sort(key=lambda x: len(graph[x])) # sort by number of successors
+    #print
+    #print 'near_leafs'
+    #print near_leafs
+    
+    while near_leafs:
+        node = near_leafs.pop(0)
+        nb = len(graph[node])
+        for successor in graph[node]:
+            if successor in leafs:
+                count[successor] -= 1 # clean a bit// useless
+                nb -= 1
+        if nb == 0:
+            leafs.insert(0, node) # head of leafs
+            #print 'removed',node
+    
+    # we are missing cicular dependencies
+    circular = list(set(graph) - set(result) - set(leafs))
+    circular.sort(key=lambda x: count[x])
+    #print
+    #print 'result+leafs'
+    #print result
+    #print leafs
+
+    #print
+    #print 'circular'
+    #print circular
+    #for c in circular:
+    #    print c, graph[c], count[c]
+    #print result+circular+leafs
+    #raise me
+    return result+circular+leafs, circular
 
 def rand_str(length):
     alphabet = "abcdefghijklmnopqrstuvwxyz"
@@ -138,15 +144,22 @@ ctype_msvc  = {
 
 # Introspection "theme" for a 32-bit target
 ctype_intro  = {
-    "T_32PINT4": "uint32_t",
-    "T_32PRCHAR": "uint32_t",
-    "T_32PUCHAR": "uint32_t",
-    "T_32PULONG": "uint32_t",
-    "T_32PLONG": "uint32_t",
-    "T_32PUQUAD": "uint32_t",
+    "T_32PINT4":   "uint32_t",
+    "T_32PRCHAR":  "uint32_t",
+    "T_32PUCHAR":  "uint32_t",
+    "T_32PULONG":  "uint32_t",
+    "T_32PLONG":   "uint32_t",
+    "T_32PUQUAD":  "uint32_t",
     "T_32PUSHORT": "uint32_t",
-    "T_32PVOID": "uint32_t",
-    "T_64PVOID": "uint64_t",
+    "T_32PVOID":   "uint32_t",
+    "T_64PINT4":   "uint64_t",
+    "T_64PRCHAR":  "uint64_t",
+    "T_64PUCHAR":  "uint64_t",
+    "T_64PULONG":  "uint64_t",
+    "T_64PLONG":   "uint64_t",
+    "T_64PUQUAD":  "uint64_t",
+    "T_64PUSHORT": "uint64_t",
+    "T_64PVOID":   "uint64_t",
     "T_INT4": "int32_t",
     "T_INT8": "int64_t",
     "T_LONG": "int32_t",
@@ -165,7 +178,7 @@ ctype_intro  = {
     "T_VOID": "void",
 }
 
-def print_basic_types():
+def print_basic_types(theme):
     print "/******* Define basic Windows types *******/"
     print
     print "// If compiling with gcc, use -fms-extensions"
@@ -284,6 +297,7 @@ base_type_size = {
     "T_WCHAR":     2,
 }
 
+
 class Record(list):
     @property
     def ofs(self):
@@ -381,6 +395,12 @@ class Member:
 
     def get_size(self):
         return self.size
+
+    def get_type(self):
+        return self.contents.split(' ')[0]
+    
+    def get_name(self):
+        return self.contents[self.contents.index(' '):]
     
     def __len__(self):
         return self.size
@@ -611,91 +631,17 @@ def memb_str(memb, name, off=-1):
 
 
 
-def size_of_one_run(run):
-    return sum([x.size for x in run])
-
-def size_from_offset_map(offset_map, comment_list, offset_of_interest=None):
-    tot_size = 0
-
-    if offset_of_interest:
-        starts = [offset_of_interest]
-    else:
-        starts = offset_map.keys()
-
-    starts.sort()
-    for i in starts:
-        if offset_of_interest and i is not offset_of_interest:
-            continue
-        elif i != tot_size:
-            comment_list.append("// Size vs offset misalignment at offset 0x%x (curr size 0x%x)"
-                                % (i, tot_size))
-        
-        runs_ll = offset_map[i] # list of lists
-
-        # size of union is max of its components
-        #tot_size += max ([len(x) for x in runs_ll])
-        tot_size += max ([size_of_one_run(x) for x in runs_ll])
-        
-    return tot_size
-
-def member_list_from_records(lf, records):
+def get_output_lines_for_record(lf, record):
     """
-    Generate member_list suitable for flstr() from the runs generated in
-    unionize(). Attempt to make acceptable formatting.
+    Generate lines of output ready formated to print.
     """
-    if isinstance(records, Union):
+    if isinstance(record, Union):
         if lf.leaf_type == 'LF_UNION':
-            return records.to_string(typedef=True).split('\n')
+            return record.to_string(typedef=True).split('\n')
         else:
-            return records.to_string(typedef=False).split('\n')
-    return records.to_string(typedef=True).split('\n')
-        
-    
-    
-        
-def member_list_from_offset_map(offset_map, leaf_type):
-    """
-    Generate member_list suitable for flstr() from the offset map generated in
-    unionize(). Attempt to make acceptable formatting.
-    """
-    my_mlist = list()
+            return record.to_string(typedef=False).split('\n')
+    return record.to_string(typedef=True).split('\n')
 
-    starts = offset_map.keys()
-    starts.sort()
-
-    for ofs in starts: # i is either a scalar or a list
-        # runs is a list of lists
-        runs = offset_map[ofs]
-
-        # how many items in sublist? 1 ==> emit it, 2+ ==> put in union
-        if len(runs) == 1: # one run at this offset
-            for member in runs[0]:
-                my_mlist.append(str(member))
-        else: # multiple runs at this offset
-            if leaf_type is not 'LF_UNION':
-                union_str = "union {\n"
-            else:
-                union_str = ""
-            sizes = list()
-            for member in runs:
-                if len(member) == 1:
-                    union_str += str(member[0]) +'\n'
-                    sizes.append(member[0].size)
-                else:
-                    struct_size = sum([x.size for x in member])
-                    sizes.append(struct_size)
-                    
-                    struct =  ('struct { // offset 0x%x\n' % member[0].ofs +
-                               '\n'.join([str(x) for x in member]) + '\n' +
-                               '}; // struct size 0x%x\n' % struct_size )
-                    union_str += struct
-                    
-            if leaf_type is not 'LF_UNION':
-                union_str += '};' ### // union size 0x%x' % max(sizes)
-
-            my_mlist.append (union_str)
-
-    return my_mlist
 
 def is_bitfield(member):
     if member is None: 
@@ -706,6 +652,7 @@ def is_bitfield(member):
     return member.leaf_type == 'LF_BITFIELD'
 
 def first_ofs_appears_later(members):
+    """Returns if offset of first field appears later in this list"""
     mbr = members[0]
     for next in members[1:]:
         if next.ofs < mbr.ofs:
@@ -715,7 +662,8 @@ def first_ofs_appears_later(members):
     return False
 
 def make_sub_runs(members):
-    """Groups sequences of fields using their offsets. Make Struct and Union.""" 
+    """Groups sequences of fields based on the increase of the field offset. 
+    Make Struct and Union based on that.""" 
     if len(members) == 1:
         ret = Struct()
         ret.extend(members)
@@ -835,6 +783,29 @@ def flush_run_to_map(offset_map, run):
         if run.ofs not in offset_map:
             offset_map[run.ofs] = list()
         offset_map[run.ofs].append ([m for m in run.members])
+
+
+def fix_members_with_nested_type(lf, members):
+    """If we have members with pointers type to lf type, we need to use the
+    struct * denomination"""
+    for m in members:
+        member_t = m.get_type()
+        parent_t = demangle(lf.name)
+        if parent_t == member_t[-len(parent_t):]:
+            # change to struct (**) _type for self reference
+            member_name = m.get_name()
+            if lf.leaf_type == 'LF_STRUCTURE':
+                record_t = 'struct'
+            else:
+                record_t = 'union'
+            if member_t == 'P%s'%(parent_t):
+                ptr_t = '*'
+            if member_t == 'PP%s'%(parent_t):
+                ptr_t = '**'
+            new_t = '%s %s%s'%(record_t, lf.name, ptr_t)
+            new_c = '%s %s'%(new_t, member_name)
+            m.contents = new_c
+        
 
 def fix_bitfield_offsets(members):
     i = 1
@@ -971,16 +942,15 @@ def unionize_compute(lf, member_list):
         s = Solution()
         return s # empty mlist
 
-    this_run = OneRun(0)
-    gap_ct = 0 # 
-    
     # maps an offset to a list of runs starting at that offset. Multiple runs
     # at one offset indicate a union, whereas one run indicates non-union
     # member(s).
     offset_map = dict() 
     raw_members = [Member(ofs,size,align,ltype,s,idx)
                    for idx,(ofs,size,align,ltype,s) in enumerate(member_list)]
-
+    
+    fix_members_with_nested_type(lf, raw_members)
+    
     fix_bitfield_offsets(raw_members)
 
     members = merge_bitfield_sequences(raw_members)
@@ -999,7 +969,7 @@ def unionize_compute(lf, member_list):
     for i,m in enumerate(members):
         m.index = i
 
-    fill_gaps (lf, members, mbr_ct_by_ofs)
+    fill_gaps(lf, members, mbr_ct_by_ofs)
 
     member_ct = len(members)
 
@@ -1011,12 +981,12 @@ def unionize_compute(lf, member_list):
     #    import pdb;pdb.set_trace()
     
     # order members per group of increasing offset
-    records = make_sub_runs(members)
+    record = make_sub_runs(members)
 
-    new_mlist = member_list_from_records(lf, records)
+    new_mlist = get_output_lines_for_record(lf, record)
 
     s = Solution()
-    s.computed_size = records.get_size()
+    s.computed_size = record.get_size()
     s.claimed_size  = lf.size
     
     if s.computed_size != s.claimed_size:
@@ -1083,11 +1053,15 @@ def flstr(lf):
     return flstr
 
 def struct_dependencies(lf):
+    #import code
+    #code.interact(local=locals())
     deps = set()
     members = [ s for s in lf.fieldlist.substructs if s.leaf_type == "LF_MEMBER" ]
     for memb in members:
         base = get_basetype(memb.index)
-        if base and not (memb.index.leaf_type == "LF_POINTER"):
+        if isinstance(base, str):
+            deps.add(base)
+        elif base :#and not (memb.index.leaf_type == "LF_POINTER"):
             if is_inline_struct(base):
                 deps = deps | struct_dependencies(base)
             else:
@@ -1172,7 +1146,9 @@ if __name__ == "__main__":
         decl_names = [name.strip('\n\r') for name in open(opts.declfilename,'r').readlines()]
     else:
         decl_names = False
-        
+            
+    print "// Generated by pdbparse " + ' '.join(sys.argv[1:])
+    print
 
     if opts.fwdrefs:
         pdb = pdbparse.parse(args[0], fast_load=True)
@@ -1212,9 +1188,11 @@ if __name__ == "__main__":
         print "#ifndef %s" % macroguard_str
         print "#define %s" % macroguard_str
         print
-        
+
+    # make dependencies
+    
     if opts.gcc:
-        print_basic_types()
+        print_basic_types(ctype)
         
     if opts.fwdrefs:
         fwdrefs = [ s for s in pdb.streams[2].types.values()
@@ -1242,6 +1220,7 @@ if __name__ == "__main__":
 
     dep_graph = {}
     names = {}
+    
     for s in structs:
         names[s.name] = s
         if decl_names and s.name not in decl_names: continue
@@ -1260,20 +1239,35 @@ if __name__ == "__main__":
                     
     enums_names = [e.name for e in enums ]
     dep_graph.update((e.name,[]) for e in enums)
-    sorted_structs_name = topological_sort(dep_graph)
+    sorted_structs_name, circular_deps = topological_sort(dep_graph)
     sorted_structs_name.reverse()
+    circular_deps.sort()
+    
+    #print sorted_structs_name
+    #raise me
+        
+    # we have to print typdef for circular_deps.
+    if not opts.fwdrefs and len(circular_deps) > 0:
+        print "/******* circular dependencies *******/"
+        for t in circular_deps:
+            s = names[t]
+            print "%s %s;" % (snames[s.leaf_type], mangle(s.name))
+            print "typedef %s %s %s;" % \
+                (snames[s.leaf_type], mangle(s.name),demangle(s.name))
+            print "typedef %s *P%s, **PP%s;" % ((demangle(s.name),)*3)
+            print
+    
     
     #import code 
     #code.interact(local=locals())
 
     print "/******* Enumerations *******/"
     for e in enums:
-        if e not in sorted_structs_name: continue
+        if e not in sorted_structs_name: continue # file based filter
         enum_pretty_str(e)
 
     print "/*******  Structures  *******/"
     for n in sorted_structs_name:
-        if n not in sorted_structs_name: continue
         if n not in names.keys(): continue # probably enum
         s = names[n]
         if "unnamed" in s.name: continue
