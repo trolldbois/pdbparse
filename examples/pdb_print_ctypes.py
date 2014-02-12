@@ -1155,6 +1155,9 @@ if __name__ == "__main__":
     parser.add_option("-w", "--width", dest="width",
                       help="set pointer width for PDB's target architecture",
                       type="int", default=None)
+    parser.add_option("-d", "--declfilename", dest="declfilename",
+                      help="Filename containing declaration names to filter on. Dependencies will be included.",
+                      metavar="FILE", default=False)
     
     opts,args = parser.parse_args()
     ctype = themes[opts.theme]
@@ -1164,6 +1167,12 @@ if __name__ == "__main__":
         struct_pretty_str = struct_pretty_str_fwd
     else:
         struct_pretty_str =  struct_pretty_str_nofwd
+
+    if opts.declfilename:
+        decl_names = [name.strip('\n\r') for name in open(opts.declfilename,'r').readlines()]
+    else:
+        decl_names = False
+        
 
     if opts.fwdrefs:
         pdb = pdbparse.parse(args[0], fast_load=True)
@@ -1234,24 +1243,38 @@ if __name__ == "__main__":
     dep_graph = {}
     names = {}
     for s in structs:
+        names[s.name] = s
+        if decl_names and s.name not in decl_names: continue
         if "unnamed" in s.name: continue
         dep_graph[s.name] = struct_dependencies(s)
-        names[s.name] = s
-    enums_names = [e.name for e in enums]
+    if decl_names: # add dependencies
+        action = True
+        while action: 
+            action = False
+            for n,deps in list(dep_graph.items()):
+                for dep_name in deps:
+                    if dep_name not in dep_graph.keys():
+                        s = names[dep_name]
+                        dep_graph[s.name] = struct_dependencies(s)
+                        action = True
+                    
+    enums_names = [e.name for e in enums ]
     dep_graph.update((e.name,[]) for e in enums)
-    sorted_structs = topological_sort(dep_graph)
-    sorted_structs.reverse()
+    sorted_structs_name = topological_sort(dep_graph)
+    sorted_structs_name.reverse()
     
     #import code 
     #code.interact(local=locals())
 
     print "/******* Enumerations *******/"
     for e in enums:
+        if e not in sorted_structs_name: continue
         enum_pretty_str(e)
 
     print "/*******  Structures  *******/"
-    for n in sorted_structs:
-        if n in enums_names: continue
+    for n in sorted_structs_name:
+        if n not in sorted_structs_name: continue
+        if n not in names.keys(): continue # probably enum
         s = names[n]
         if "unnamed" in s.name: continue
         if s.leaf_type == "LF_ENUM": continue
