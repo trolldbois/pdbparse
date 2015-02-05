@@ -824,6 +824,7 @@ def fix_members_with_nested_type(lf, members):
                 record_t = 'struct'
             else:
                 record_t = 'union'
+            ptr_t = ''
             if member_t == 'P%s'%(parent_t):
                 ptr_t = '*'
             if member_t == 'PP%s'%(parent_t):
@@ -1150,6 +1151,9 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser()
 
+    parser.add_argument("-w", "--width", dest="width",
+                      help="set pointer width for PDB's target architecture (4 or 8)",
+                      type=int, choices=[4,8], required=True)
     parser.add_argument("-g", "--gcc", dest="gcc",
                       help="emit code to assist in compilation under gcc (e.g. \"typedef uint32_t UINT32\")",
                       action="store_true", default=False)
@@ -1161,9 +1165,6 @@ if __name__ == "__main__":
                       default="msvc")
     parser.add_argument("-f", "--fwdrefs", dest="fwdrefs", action="store_true",
                       help="emit forward references", default=False)
-    parser.add_argument("-w", "--width", dest="width",
-                      help="set pointer width for PDB's target architecture (4 or 8)",
-                      type=int, choices=[4,8], default=None)
     parser.add_argument("-d", "--declfilename", dest="declfilename",
                       help="Filename containing declaration names to filter on. Dependencies will be included.",
                       metavar="FILE", default=False)
