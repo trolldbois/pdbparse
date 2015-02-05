@@ -627,8 +627,8 @@ def memb_str(memb, name, off=-1):
     else:
         tpname = get_tpname(memb, name)
 
-    import code
-    code.interact(local=locals())
+    #import code
+    #code.interact(local=locals())
 
     if off != -1:
         size = get_size(memb)
@@ -989,6 +989,7 @@ def unionize_compute(lf, member_list):
     
     # count how many members occupy each offset
     mbr_ct_by_ofs = [0] * byte_ct
+    #print "byte_t and sizes", byte_ct
     #import code
     #code.interact(local=locals())
     for m in members:
@@ -1024,9 +1025,9 @@ def unionize_compute(lf, member_list):
         s.comments.append ("// ************ INCORRECT SIZE *************************")
         s.comments.append ("// claimed in PDB: 0x%x, calculated: 0x%x"
                            % (s.claimed_size,s.computed_size))
-        print 'incorrect size block'
-        import code
-        code.interact(local=locals())
+        #print 'incorrect size block'
+        #import code
+        #code.interact(local=locals())
 
          # e.g. VISTA SP2 x86_32: ntdll.pdb(struct _DISPATCHER_HEADER)
         new_mlist.insert(0, '/*')
@@ -1146,28 +1147,30 @@ theme_func = {
 }
 
 if __name__ == "__main__":
-    from optparse import OptionParser
-    parser = OptionParser()
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
 
-    parser.add_option("-g", "--gcc", dest="gcc",
+    parser.add_argument("-g", "--gcc", dest="gcc",
                       help="emit code to assist in compilation under gcc (e.g. \"typedef uint32_t UINT32\")",
                       action="store_true", default=False)
-    parser.add_option("-m", "--macroguard", dest="macroguard",
+    parser.add_argument("-m", "--macroguard", dest="macroguard",
                       help="emit macroguards around output",
                       action="store_true", default=False)
-    parser.add_option("-t", "--theme", dest="theme",
+    parser.add_argument("-t", "--theme", dest="theme",
                       help="theme to use for C types [%s]" % ", ".join(themes),
                       default="msvc")
-    parser.add_option("-f", "--fwdrefs", dest="fwdrefs", action="store_true",
+    parser.add_argument("-f", "--fwdrefs", dest="fwdrefs", action="store_true",
                       help="emit forward references", default=False)
-    parser.add_option("-w", "--width", dest="width",
-                      help="set pointer width for PDB's target architecture",
-                      type="int", default=None)
-    parser.add_option("-d", "--declfilename", dest="declfilename",
+    parser.add_argument("-w", "--width", dest="width",
+                      help="set pointer width for PDB's target architecture (4 or 8)",
+                      type=int, choices=[4,8], default=None)
+    parser.add_argument("-d", "--declfilename", dest="declfilename",
                       help="Filename containing declaration names to filter on. Dependencies will be included.",
                       metavar="FILE", default=False)
+    parser.add_argument("filename", help="The PDB filename")
     
-    opts,args = parser.parse_args()
+    opts = parser.parse_args()
+    
     ctype = themes[opts.theme]
     ptr_str = theme_func[opts.theme]["ptr_str"]
     fptr_str = theme_func[opts.theme]["fptr_str"]
@@ -1185,10 +1188,10 @@ if __name__ == "__main__":
     print_to_output("")
 
     if opts.fwdrefs:
-        pdb = pdbparse.parse(args[0], fast_load=True)
+        pdb = pdbparse.parse(opts.filename, fast_load=True)
         pdb.streams[2].load(elim_fwdrefs=False)
     else:
-        pdb = pdbparse.parse(args[0])
+        pdb = pdbparse.parse(opts.filename)
 
     # Determine the pointer width, set global ARCH_PTR_SIZE
     if opts.width:
