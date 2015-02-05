@@ -252,7 +252,7 @@ typedef  UINT32   PLONGLONG;
 
 typedef  UINT32       PVOID, PPVOID;
 
-#else /////////////////  !WINDOWS_USE_32_BIT_POINTERS"
+#else /////////////////  !WINDOWS_USE_32_BIT_POINTERS
 // pointers occupy native address width per ABI
 typedef     UINT8     *PUINT8;
 typedef     UCHAR     *PUCHAR;
@@ -273,11 +273,11 @@ typedef    UINT64    *PUINT64;
 typedef ULONGLONG *PULONGLONG;
 typedef  LONGLONG  *PLONGLONG;
 
-typedef      VOID      *PVOID, **PPVOID
+typedef      VOID      *PVOID, **PPVOID;
 
-#endif /////////////////  WINDOWS_USE_32_BIT_POINTERS"
+#endif /////////////////  WINDOWS_USE_32_BIT_POINTERS
 
-#define P(basetype, var) ( (basetype *)(var))"
+#define P(basetype, var) ( (basetype *)(var))
 """)
 
     
