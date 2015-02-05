@@ -27,6 +27,7 @@ def topological_sort(graph):
             count[successor] += 1
 
     ready = [ node for node in graph if count[node] == 0 and not graph[node]]
+    ready.sort()
     #print
     #print 'ready'
     #print ready

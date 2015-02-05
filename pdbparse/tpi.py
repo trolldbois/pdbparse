@@ -25,6 +25,7 @@ type_refs = {
 
     # TODO: Unparsed
     "LF_METHODLIST": [],
+    "LF_ENUM_ST": [],
 
     # FIELDLIST substructures
     "LF_BCLASS": ["index"],
@@ -35,6 +36,8 @@ type_refs = {
     "LF_NESTTYPE": ["index"],
     "LF_ONEMETHOD": ["index"],
     "LF_VFUNCTAB": ["type"],
+
+
 }
 
 ### Enums for base and leaf types
@@ -1112,7 +1115,12 @@ def parse_stream(fp, unnamed_hack=True, elim_fwdrefs=True):
                     merge_fwdrefs(t, types, fwdref_map) for t in types[i].substructs
                 ])
             else:
-                types[i] = merge_fwdrefs(types[i], types, fwdref_map)
+                try:
+                    types[i] = merge_fwdrefs(types[i], types, fwdref_map)
+                except AttributeError as e:
+                    #print "// ERROR on i:",i
+                    # Erro on some LF_ENUM not declared in pdb
+                    fwdref_map[i] = types[i].tpi_idx
         # Get rid of the resolved fwdrefs
         for i in fwdref_map: del types[i]
 
