@@ -11,6 +11,21 @@ import pdbparse
 import random
 import pprint
 
+import pkg_resources
+
+def version():
+    return pkg_resources.require("pdbparse")[0].version
+
+
+import StringIO
+output = StringIO.StringIO()
+
+def print_to_output(txt):
+    #print >> output, txt
+    print txt
+
+
+
 # Topological sort, by Paul Harrison
 # Found at:
 #   http://www.logarithmic.net/pfh-files/blog/01208083168/sort.py
@@ -182,88 +197,88 @@ ctype_intro  = {
 }
 
 def print_basic_types(theme):
-    print "/******* Define basic Windows types *******/"
-    print
-    print "// If compiling with gcc, use -fms-extensions"
-    print
-    print "#include <stdint.h>"
-    print
-    print "typedef  uint8_t     UINT8;"
-    print "typedef  uint8_t     UCHAR;"
-    print "typedef  uint8_t      BOOL;"
-    print
-    print "typedef   int8_t      CHAR;"
-    print "typedef   int8_t      INT8;"
-    print
-    print "typedef uint16_t     WCHAR;"
-    print "typedef uint16_t    UINT16;"
-    print "typedef uint16_t    USHORT;"
-    print "typedef  int16_t     SHORT;"
-    print
-    print "typedef uint32_t    UINT32;"
-    print "typedef uint32_t     ULONG;"
-    print "typedef  int32_t      LONG;"
-    print
-    print "typedef uint64_t    UINT64;"
-    print "typedef uint64_t ULONGLONG;"
-    print "typedef  int64_t  LONGLONG;"
-    print
-    print "typedef uint64_t   PVOID64, PPVOID64;"
-    print "typedef uint32_t   PVOID32, PPVOID32;"
-    print "typedef     void      VOID;"
-    print
-    print "typedef  double     DOUBLE; // not true but -hey FIXME"
-    print
-    print "#ifdef WINDOWS_USE_32_BIT_POINTERS ///////////////"
-    print "// pointers occupy exactly 32 bits"
-    print "typedef  UINT32     PUINT8;"
-    print "typedef  UINT32     PUCHAR;"
-    print "typedef  UINT32      PBOOL;"
-    print
-    print "typedef  UINT32      PCHAR;"
-    print "typedef  UINT32      PINT8;"
-    print
-    print "typedef  UINT32    PUINT16;"
-    print "typedef  UINT32    PUSHORT;"
-    print "typedef  UINT32     PSHORT;"
-    print
-    print "typedef  UINT32     PUINT32;"
-    print "typedef  UINT32      PULONG;"
-    print "typedef  UINT32       PLONG;"
-    print
-    print "typedef  UINT32     PUINT64;"
-    print "typedef  UINT32  PULONGLONG;"
-    print "typedef  UINT32   PLONGLONG;"
-    print
-    print "typedef  UINT32       PVOID, PPVOID;"
-    print
-    print "#else /////////////////  !WINDOWS_USE_32_BIT_POINTERS"
-    print "// pointers occupy native address width per ABI"
-    print "typedef     UINT8     *PUINT8;"
-    print "typedef     UCHAR     *PUCHAR;"
-    print "typedef      BOOL      *PBOOL;"
-    print
-    print "typedef      CHAR      *PCHAR;"
-    print "typedef      INT8      *PINT8;"
-    print
-    print "typedef    UINT16    *PUINT16;"
-    print "typedef    USHORT    *PUSHORT;"
-    print "typedef     SHORT     *PSHORT;"
-    print
-    print "typedef    UINT32    *PUINT32;"
-    print "typedef     ULONG     *PULONG;"
-    print "typedef      LONG      *PLONG;"
-    print
-    print "typedef    UINT64    *PUINT64;"
-    print "typedef ULONGLONG *PULONGLONG;"
-    print "typedef  LONGLONG  *PLONGLONG;"
-    print
-    print "typedef      VOID      *PVOID, **PPVOID;"
-    print
-    print "#endif /////////////////  WINDOWS_USE_32_BIT_POINTERS"
-    print "\n\n\n"
-    print "#define P(basetype, var) ( (basetype *)(var))"
-    print "\n\n\n"
+    print_to_output("""/******* Define basic Windows types *******/
+
+// If compiling with gcc, use -fms-extensions
+
+#include <stdint.h>
+
+typedef  uint8_t     UINT8;
+typedef  uint8_t     UCHAR;
+typedef  uint8_t      BOOL;
+
+typedef   int8_t      CHAR;
+typedef   int8_t      INT8;
+
+typedef uint16_t     WCHAR;
+typedef uint16_t    UINT16;
+typedef uint16_t    USHORT;
+typedef  int16_t     SHORT;
+
+typedef uint32_t    UINT32;
+typedef uint32_t     ULONG;
+typedef  int32_t      LONG;
+
+typedef uint64_t    UINT64;
+typedef uint64_t ULONGLONG;
+typedef  int64_t  LONGLONG;
+
+typedef uint64_t   PVOID64, PPVOID64;
+typedef uint32_t   PVOID32, PPVOID32;
+typedef     void      VOID;
+
+typedef  double     DOUBLE; // not true but -hey FIXME
+
+#ifdef WINDOWS_USE_32_BIT_POINTERS ///////////////
+// pointers occupy exactly 32 bits
+typedef  UINT32     PUINT8;
+typedef  UINT32     PUCHAR;
+typedef  UINT32      PBOOL;
+
+typedef  UINT32      PCHAR;
+typedef  UINT32      PINT8;
+
+typedef  UINT32    PUINT16;
+typedef  UINT32    PUSHORT;
+typedef  UINT32     PSHORT;
+
+typedef  UINT32     PUINT32;
+typedef  UINT32      PULONG;
+typedef  UINT32       PLONG;
+
+typedef  UINT32     PUINT64;
+typedef  UINT32  PULONGLONG;
+typedef  UINT32   PLONGLONG;
+
+typedef  UINT32       PVOID, PPVOID;
+
+#else /////////////////  !WINDOWS_USE_32_BIT_POINTERS"
+// pointers occupy native address width per ABI
+typedef     UINT8     *PUINT8;
+typedef     UCHAR     *PUCHAR;
+typedef      BOOL      *PBOOL;
+
+typedef      CHAR      *PCHAR;
+typedef      INT8      *PINT8;
+
+typedef    UINT16    *PUINT16;
+typedef    USHORT    *PUSHORT;
+typedef     SHORT     *PSHORT;
+
+typedef    UINT32    *PUINT32;
+typedef     ULONG     *PULONG;
+typedef      LONG      *PLONG;
+
+typedef    UINT64    *PUINT64;
+typedef ULONGLONG *PULONGLONG;
+typedef  LONGLONG  *PLONGLONG;
+
+typedef      VOID      *PVOID, **PPVOID
+
+#endif /////////////////  WINDOWS_USE_32_BIT_POINTERS"
+
+#define P(basetype, var) ( (basetype *)(var))"
+""")
 
     
 base_type_size = {
@@ -377,6 +392,7 @@ class Member:
 
         else:
             return '{0:<50} {1}'.format(tab+self.member_str(), self.comment_str())
+    
     
     def member_str(self):
         return self.contents
@@ -502,6 +518,9 @@ def get_size(lf):
         return get_size("T_INT4")
     elif lf.leaf_type == "LF_BITFIELD":
         return 1.0 * lf.length / 8
+    elif lf.leaf_type == "LF_MEMBER":
+        
+        return get_size(lf.index)
     else:
         print >>sys.stderr, "ERROR: don't know how to get size for %s" % lf.leaf_type
         return -1
@@ -607,6 +626,10 @@ def memb_str(memb, name, off=-1):
         tpname += "} " + name
     else:
         tpname = get_tpname(memb, name)
+
+    import code
+    code.interact(local=locals())
+
     if off != -1:
         size = get_size(memb)
         ltype = None
@@ -892,6 +915,8 @@ class Solution:
 def fill_gaps(lf, members, mbr_ct_by_ofs):
     '''
     Fill in gaps -- areas where there are no members to account for the space.
+    
+    Padding by uchar size every time.
     '''
 
     new_mlist = list()
@@ -964,8 +989,11 @@ def unionize_compute(lf, member_list):
     
     # count how many members occupy each offset
     mbr_ct_by_ofs = [0] * byte_ct
+    #import code
+    #code.interact(local=locals())
     for m in members:
-        for ofs in range(m.ofs, m.ofs+m.size):
+        for ofs in range(m.ofs, m.ofs+(m.size/8)): 
+            # we check every byte
             mbr_ct_by_ofs[ofs] += 1
 
     # fix indices
@@ -996,6 +1024,9 @@ def unionize_compute(lf, member_list):
         s.comments.append ("// ************ INCORRECT SIZE *************************")
         s.comments.append ("// claimed in PDB: 0x%x, calculated: 0x%x"
                            % (s.claimed_size,s.computed_size))
+        print 'incorrect size block'
+        import code
+        code.interact(local=locals())
 
          # e.g. VISTA SP2 x86_32: ntdll.pdb(struct _DISPATCHER_HEADER)
         new_mlist.insert(0, '/*')
@@ -1072,31 +1103,31 @@ def struct_dependencies(lf):
     return deps
 
 def struct_pretty_str_fwd(lf, gcc):
-    print "%s %s { // %#x bytes" % (snames[lf.leaf_type], mangle(lf.name), lf.size)
-    print flstr(lf)
+    print_to_output("%s %s { // %#x bytes" % (snames[lf.leaf_type], mangle(lf.name), lf.size))
+    print_to_output(flstr(lf))
     if gcc:
-        print "} __attribute__((packed));"
+        print_to_output("} __attribute__((packed));")
     else:
-        print "};"
+        print_to_output("};")
     print
 
 def struct_pretty_str_nofwd(lf, gcc):
-    print "typedef %s %s { // %#x bytes" % (snames[lf.leaf_type], mangle(lf.name), lf.size)
-    print flstr(lf)
+    print_to_output("typedef %s %s { // %#x bytes" % (snames[lf.leaf_type], mangle(lf.name), lf.size))
+    print_to_output(flstr(lf))
     if gcc:
-        print "} __attribute__((packed)) %s, *P%s, **PP%s ;" % ((demangle(lf.name),)*3)
+        print_to_output("} __attribute__((packed)) %s, *P%s, **PP%s ;" % ((demangle(lf.name),)*3))
     else:
-        print "} %s, *P%s, **PP%s ;" % ((demangle(lf.name),)*3)
-    print
+        print_to_output("} %s, *P%s, **PP%s ;" % ((demangle(lf.name),)*3))
+    print_to_output("")
 
 def enum_pretty_str(enum):
     #if not enum.name.startswith("_"):
     #    name = "_" + enum.name
     #else: name = enum.name
-    print "typedef enum %s {" % mangle(enum.name)
-    print flstr(enum)
-    print "} %s;" % demangle(enum.name)
-    print
+    print_to_output("typedef enum %s {" % mangle(enum.name))
+    print_to_output(flstr(enum))
+    print_to_output("} %s;" % demangle(enum.name))
+    print_to_output("")
 
 themes = {
     "msvc": ctype_msvc,
@@ -1150,8 +1181,8 @@ if __name__ == "__main__":
     else:
         decl_names = False
             
-    print "// Generated by pdbparse " + ' '.join(sys.argv[1:])
-    print
+    print_to_output("// Generated by pdbparse v%s - "%(version()) + ' '.join(sys.argv[1:]))
+    print_to_output("")
 
     if opts.fwdrefs:
         pdb = pdbparse.parse(args[0], fast_load=True)
@@ -1170,11 +1201,11 @@ if __name__ == "__main__":
 
             # sets global ARCH_PTR_SIZE
             if pdb.STREAM_DBI.machine in ('IMAGE_FILE_MACHINE_I386'):
-                print "// Architecture pointer width 4 bytes"
+                print_to_output("// Architecture pointer width 4 bytes")
                 ARCH_PTR_SIZE = 4
             elif pdb.STREAM_DBI.machine in ('IMAGE_FILE_MACHINE_AMD64',
                                             'IMAGE_FILE_MACHINE_IA64'):
-                print "// Architecture pointer width 8 bytes"
+                print_to_output("// Architecture pointer width 8 bytes")
                 ARCH_PTR_SIZE = 8
             else:
                 sys.stderr.write ("Failed to find arch pointer width. Use the -w option.")
@@ -1188,9 +1219,9 @@ if __name__ == "__main__":
             
     if opts.macroguard:
         macroguard_str = "_WINDOWS_PDB_" + os.path.basename(args[0]).replace('.', '_') + "_defns"
-        print "#ifndef %s" % macroguard_str
-        print "#define %s" % macroguard_str
-        print
+        print_to_output("#ifndef %s" % macroguard_str)
+        print_to_output("#define %s" % macroguard_str)
+        print_to_output("")
 
     # make dependencies
     
@@ -1200,18 +1231,18 @@ if __name__ == "__main__":
     if opts.fwdrefs:
         fwdrefs = [ s for s in pdb.streams[2].types.values()
                     if s.leaf_type in ("LF_STRUCTURE","LF_UNION") and s.prop.fwdref ]
-        print "/******* Forward Refs *******/"
+        print_to_output("/******* Forward Refs *******/")
         for f in fwdrefs:
-            print "%s %s;" % (snames[f.leaf_type], mangle(f.name))
-            print "typedef %s %s %s;" % \
-                (snames[f.leaf_type], mangle(f.name),demangle(f.name))
-            print "#ifdef WINDOWS_USE_32_BIT_POINTERS"
-            print "   typedef %s P%s, PP%s; // pointers take up 32 bits" % \
-                ("UINT32", demangle(f.name), demangle(f.name))
-            print "#else"
-            print "   typedef %s *P%s, **PP%s;" % ((demangle(f.name),)*3)
-            print "#endif"
-            print
+            print_to_output("%s %s;" % (snames[f.leaf_type], mangle(f.name)))
+            print_to_output("typedef %s %s %s;" % \
+                (snames[f.leaf_type], mangle(f.name),demangle(f.name)))
+            print_to_output("#ifdef WINDOWS_USE_32_BIT_POINTERS")
+            print_to_output("   typedef %s P%s, PP%s; // pointers take up 32 bits" % \
+                ("UINT32", demangle(f.name), demangle(f.name)))
+            print_to_output("#else")
+            print_to_output("   typedef %s *P%s, **PP%s;" % ((demangle(f.name),)*3))
+            print_to_output("#endif")
+            print_to_output("")
         # Reload the file without fwdrefs as it messes up type sizes
         pdb = pdbparse.parse(args[0])
 
@@ -1251,25 +1282,25 @@ if __name__ == "__main__":
         
     # we have to print typdef for circular_deps.
     if not opts.fwdrefs and len(circular_deps) > 0:
-        print "/******* circular dependencies *******/"
+        print_to_output("/******* circular dependencies *******/")
         for t in circular_deps:
             s = names[t]
-            print "%s %s;" % (snames[s.leaf_type], mangle(s.name))
-            print "typedef %s %s %s;" % \
-                (snames[s.leaf_type], mangle(s.name),demangle(s.name))
-            print "typedef %s *P%s, **PP%s;" % ((demangle(s.name),)*3)
-            print
+            print_to_output("%s %s;" % (snames[s.leaf_type], mangle(s.name)))
+            print_to_output("typedef %s %s %s;" % \
+                (snames[s.leaf_type], mangle(s.name),demangle(s.name)))
+            print_to_output("typedef %s *P%s, **PP%s;" % ((demangle(s.name),)*3))
+            print_to_output("")
     
     
     #import code 
     #code.interact(local=locals())
 
-    print "/******* Enumerations *******/"
+    print_to_output("/******* Enumerations *******/")
     for e in enums:
         if e not in sorted_structs_name: continue # file based filter
         enum_pretty_str(e)
 
-    print "/*******  Structures  *******/"
+    print_to_output("/*******  Structures  *******/")
     for n in sorted_structs_name:
         if n not in names.keys(): continue # probably enum
         s = names[n]
@@ -1278,4 +1309,9 @@ if __name__ == "__main__":
         struct_pretty_str(s, opts.gcc)
 
     if opts.macroguard:
-        print "#endif // #define %s" % macroguard_str
+        print_to_output("#endif // #define %s" % macroguard_str)
+        
+    # actually print
+    print output.getvalue()
+    
+    #bye
