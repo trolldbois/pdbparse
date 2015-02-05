@@ -990,11 +990,8 @@ def unionize_compute(lf, member_list):
     
     # count how many members occupy each offset
     mbr_ct_by_ofs = [0] * byte_ct
-    #print "byte_t and sizes", byte_ct
-    #import code
-    #code.interact(local=locals())
     for m in members:
-        for ofs in range(m.ofs, m.ofs+(m.size/8)): 
+        for ofs in range(m.ofs, m.ofs+m.size): 
             # we check every byte
             mbr_ct_by_ofs[ofs] += 1
 
