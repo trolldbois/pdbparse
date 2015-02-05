@@ -24,6 +24,8 @@ def topological_sort(graph):
             if successor == node:
                 graph[node].remove(node)
                 continue # handled with changing the member type
+            if successor not in count:
+                count[successor] = 0
             count[successor] += 1
 
     ready = [ node for node in graph if count[node] == 0 and not graph[node]]
