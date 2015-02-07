@@ -13,6 +13,8 @@ import pprint
 
 import pkg_resources
 
+ARCH_PTR_SIZE = None
+
 
 def version():
     return pkg_resources.require("pdbparse")[0].version
@@ -113,7 +115,6 @@ def rand_str(length):
     return "".join(random.sample(alphabet, length))
 
 
-ARCH_PTR_SIZE = None
 
 snames = {
     "LF_STRUCTURE": "struct",
@@ -1243,9 +1244,16 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser()
 
+    # the PDB is architecture dependant i think, cf IMAGE_FILE_MACHINE
     parser.add_argument("-w", "--width", dest="width",
                         help="set pointer width for PDB's target architecture (4 or 8)",
                         type=int, choices=[4, 8], required=True)
+    parser.add_argument("-d", "--declfilename", dest="declfilename",
+                        help="Filename containing declaration names to filter on. Dependencies will be included.",
+                        metavar="FILE", default=False)
+    parser.add_argument("-f", "--fwdrefs", dest="fwdrefs", action="store_true",
+                        help="emit forward references", default=False)
+
     parser.add_argument("-g", "--gcc", dest="gcc",
                         help="emit code to assist in compilation under gcc (e.g. \"typedef uint32_t UINT32\")",
                         action="store_true", default=False)
@@ -1256,11 +1264,6 @@ if __name__ == "__main__":
                         help="theme to use for C types [%s]" % ", ".join(
                             themes),
                         default="msvc")
-    parser.add_argument("-f", "--fwdrefs", dest="fwdrefs", action="store_true",
-                        help="emit forward references", default=False)
-    parser.add_argument("-d", "--declfilename", dest="declfilename",
-                        help="Filename containing declaration names to filter on. Dependencies will be included.",
-                        metavar="FILE", default=False)
     parser.add_argument("filename", help="The PDB filename")
 
     opts = parser.parse_args()
@@ -1296,13 +1299,14 @@ if __name__ == "__main__":
         pdb = pdbparse.parse(opts.filename)
 
     # Determine the pointer width, set global ARCH_PTR_SIZE
-    if opts.width:
+    if hasattr(opts,'width'):
         ARCH_PTR_SIZE = opts.width
     else:
-        # TODO: this causes a ConstError occassionally (can't be reliably
-        # reproduced).
+        # 201502 - this does not seem to work
         try:
-            # pdb.STREAM_DBI.load()
+            # TODO: this causes a ConstError occassionally (can't be reliably
+            # reproduced).
+            pdb.STREAM_DBI.load()
 
             # sets global ARCH_PTR_SIZE
             if pdb.STREAM_DBI.machine in ('IMAGE_FILE_MACHINE_I386'):
