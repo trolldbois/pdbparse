@@ -7,9 +7,12 @@ from optparse import OptionParser
 from pdbparse.pe import Sections
 from pdbparse.omap import Omap
 
+
 class DummyOmap(object):
+
     def remap(self, addr):
         return addr
+
 
 def cstring(str):
     return str.split('\0')[0]
@@ -37,10 +40,11 @@ gsyms = pdb.STREAM_GSYM
 for sym in gsyms.globals:
     try:
         off = sym.offset
-        virt_base = sects[sym.segment-1].VirtualAddress
-        nm = cstring(sects[sym.segment-1].Name)
-        print "%s,%#x,%d,%s" % (sym.name,imgbase+omap.remap(off+virt_base),sym.symtype,nm)
-    except IndexError,e:
-        print >> sys.stderr, "Skipping %s, segment %d does not exist" % (sym.name,sym.segment-1)
-    except AttributeError,e:
+        virt_base = sects[sym.segment - 1].VirtualAddress
+        nm = cstring(sects[sym.segment - 1].Name)
+        print "%s,%#x,%d,%s" % (sym.name, imgbase + omap.remap(off + virt_base), sym.symtype, nm)
+    except IndexError as e:
+        print >> sys.stderr, "Skipping %s, segment %d does not exist" % (
+            sym.name, sym.segment - 1)
+    except AttributeError as e:
         pass

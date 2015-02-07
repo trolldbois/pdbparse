@@ -67,51 +67,53 @@ lists = {
 
 traversed = set()
 
+
 def print_closure(s, nodes=False, comments=False):
     global structs
     global traversed
     traversed.add(s)
-    
-    if isinstance(s.fieldlist,str):
+
+    if isinstance(s.fieldlist, str):
         return
 
     if nodes:
         print '    %s_%d [label="{ %s | Index: %d \\n Size: %d \\n Members: %d }", shape=record];' % (s.name, s.tpi_idx,
-            s.name, s.tpi_idx, s.size, s.count)
+                                                                                                      s.name, s.tpi_idx, s.size, s.count)
 
     for u in s.fieldlist.substructs:
         if u.leaf_type == "LF_MEMBER":
-            if isinstance(u.index,str): continue
+            if isinstance(u.index, str):
+                continue
             if u.index.leaf_type == "LF_STRUCTURE":
-                if u.index.name == '_LIST_ENTRY' and (s.name,u.name) in lists:
-                    list_element_type = structs[lists[(s.name,u.name)]]
+                if u.index.name == '_LIST_ENTRY' and (s.name, u.name) in lists:
+                    list_element_type = structs[lists[(s.name, u.name)]]
                     if nodes:
                         print '    %s_%d -> %s_%d [style=dashed,color=forestgreen]; %s' % (s.name, s.tpi_idx, list_element_type.name, list_element_type.tpi_idx,
-                                                                      "//" + u.name if comments else "")
+                                                                                           "//" + u.name if comments else "")
                     else:
                         print '    %s -> %s [style=dashed,color=forestgreen]; %s' % (s.name, list_element_type.name,
-                                                                   "//" + u.name if comments else "")
+                                                                                     "//" + u.name if comments else "")
                     next_type = list_element_type
                 else:
                     if nodes:
                         print '    %s_%d -> %s_%d [color=blue]; %s' % (s.name, s.tpi_idx, u.index.name, u.index.tpi_idx,
-                                                          "//" + u.name if comments else "")
+                                                                       "//" + u.name if comments else "")
                     else:
                         print '    %s -> %s [color=blue]; %s' % (s.name, u.index.name,
-                                                    "//" + u.name if comments else "")
+                                                                 "//" + u.name if comments else "")
                     next_type = u.index
 
                 if not next_type in traversed:
                     print_closure(next_type, nodes)
             elif (u.index.leaf_type == "LF_POINTER" and
-                  not isinstance(u.index.utype,str) and
+                  not isinstance(u.index.utype, str) and
                   u.index.utype.leaf_type == "LF_STRUCTURE"):
                 if nodes:
                     print '    %s_%d -> %s_%d [style=dashed,color=red]; %s' % (s.name, s.tpi_idx, u.index.utype.name, u.index.utype.tpi_idx,
-                                                                  "//" + u.name if comments else "")
+                                                                               "//" + u.name if comments else "")
                 else:
                     print '    %s -> %s [style=dashed,color=red]; %s' % (s.name, u.index.utype.name,
-                                                                  "//" + u.name if comments else "")
+                                                                         "//" + u.name if comments else "")
                 if not u.index.utype in traversed:
                     print_closure(u.index.utype, nodes)
 

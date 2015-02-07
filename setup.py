@@ -12,20 +12,23 @@ setup(name='pdbparse',
       packages=['pdbparse'],
       requires=['construct', 'pefile'],
       classifiers=[
-        'License :: OSI Approved :: GNU General Public License (GPL)',
-        'Operating System :: OS Independent',
+          'License :: OSI Approved :: GNU General Public License (GPL)',
+          'Operating System :: OS Independent',
       ],
       ext_modules=[
-        Extension('pdbparse._undname', ['src/undname.c'], export_symbols=['undname'])
+          Extension(
+              'pdbparse._undname',
+              ['src/undname.c'],
+              export_symbols=['undname'])
       ],
       scripts=[
-        'scripts/pdbtoh.py',
-        'examples/pdb_dump.py',
-        'examples/pdb_get_syscall_table.py',
-        'examples/pdb_lookup.py',
-        'examples/pdb_print_gvars.py',
-        'examples/pdb_print_tpi.py',
-        'examples/pdb_tpi_vtypes.py',
-        'examples/symchk.py',
+          'scripts/pdbtoh.py',
+          'examples/pdb_dump.py',
+          'examples/pdb_get_syscall_table.py',
+          'examples/pdb_lookup.py',
+          'examples/pdb_print_gvars.py',
+          'examples/pdb_print_tpi.py',
+          'examples/pdb_tpi_vtypes.py',
+          'examples/symchk.py',
       ]
-     )
+      )

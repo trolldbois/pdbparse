@@ -4,13 +4,15 @@ from construct import *
 from bisect import bisect
 
 OMAP_ENTRY = Struct("OmapFromSrc",
-    ULInt32("From"),
-    ULInt32("To"),
-)
+                    ULInt32("From"),
+                    ULInt32("To"),
+                    )
 
 OMAP_ENTRIES = GreedyRange(OMAP_ENTRY)
 
+
 class Omap(object):
+
     def __init__(self, omapstream):
         self.omap = OMAP_ENTRIES.parse(omapstream)
 

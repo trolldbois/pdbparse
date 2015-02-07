@@ -4,7 +4,7 @@ import pdbparse
 import sys
 from os.path import basename
 
-vtype  = {
+vtype = {
     "T_32PINT4": "'pointer', ['long']",
     "T_32PRCHAR": "'pointer', ['unsigned char']",
     "T_32PUCHAR": "'pointer', ['unsigned char']",
@@ -60,7 +60,7 @@ base_type_size = {
     "T_32PVOID": 4,
     "T_64PRCHAR": 8,
     "T_64PUCHAR": 8,
-    "T_64PULONG": 8, 
+    "T_64PULONG": 8,
     "T_64PLONG": 8,
     "T_64PUQUAD": 8,
     "T_64PUSHORT": 8,
@@ -84,8 +84,10 @@ base_type_size = {
     "T_32PREAL32": 4,
     "T_32PREAL64": 8,
 }
+
+
 def get_size(lf):
-    if isinstance(lf,str):
+    if isinstance(lf, str):
         return base_type_size[lf]
     elif (lf.leaf_type == "LF_STRUCTURE" or
           lf.leaf_type == "LF_ARRAY" or
@@ -95,7 +97,9 @@ def get_size(lf):
         return ARCH_PTR_SIZE
     elif lf.leaf_type == "LF_MODIFIER":
         return get_size(lf.modified_type)
-    else: return -1
+    else:
+        return -1
+
 
 def member_str(m):
     if isinstance(m, str):
@@ -106,11 +110,13 @@ def member_str(m):
         elif ARCH_PTR_SIZE == 8:
             return "['pointer64', %s]" % member_str(m.utype)
         else:
-            raise NotImplementedError("Unsupported ARCH_PTR_SIZE=%d" % ARCH_PTR_SIZE)
+            raise NotImplementedError(
+                "Unsupported ARCH_PTR_SIZE=%d" %
+                ARCH_PTR_SIZE)
     elif m.leaf_type == "LF_MODIFIER":
         return member_str(m.modified_type)
     elif m.leaf_type == "LF_ARRAY":
-        count = m.size / get_size(m.element_type) 
+        count = m.size / get_size(m.element_type)
         return "['array', %d, %s]" % (count, member_str(m.element_type))
     elif m.leaf_type == "LF_STRUCTURE":
         return "['%s']" % m.name
@@ -119,23 +125,27 @@ def member_str(m):
     elif m.leaf_type == "LF_PROCEDURE":
         return "['void']"
     elif m.leaf_type == "LF_BITFIELD":
-        return "['BitField', dict(start_bit = %d, end_bit = %d, native_type=%s)]" % (m.position, m.position+m.length, member_str(m.base_type)[1:-1])
+        return "['BitField', dict(start_bit = %d, end_bit = %d, native_type=%s)]" % (
+            m.position, m.position + m.length, member_str(m.base_type)[1:-1])
     elif m.leaf_type == "LF_ENUM":
-        enum_membs = [ e for e in m.fieldlist.substructs if e.leaf_type == "LF_ENUMERATE" ]
+        enum_membs = [
+            e for e in m.fieldlist.substructs if e.leaf_type == "LF_ENUMERATE"]
         choices = {}
         for e in enum_membs:
             e_val = -1 if e.enum_value == '\xff' else e.enum_value
             choices[e_val] = e.name
-        return "['Enumeration', dict(target = %s, choices = %s)]" % (vtype[m.utype], choices)
+        return "['Enumeration', dict(target = %s, choices = %s)]" % (
+            vtype[m.utype], choices)
     else:
         return "[UNIMPLEMENTED %s]" % m.leaf_type
+
 
 def print_vtype(lf):
     print "  '%s' : [ %#x, {" % (lf.name, lf.size)
     for s in lf.fieldlist.substructs:
         try:
             print "    '%s' : [ %#x, %s]," % (s.name, s.offset, member_str(s.index))
-        except AttributeError,e:
+        except AttributeError as e:
             print "    # Missing member of type %s" % s.leaf_type
     print "} ],"
 
@@ -143,17 +153,17 @@ def print_vtype(lf):
 from optparse import OptionParser
 op = OptionParser()
 op.add_option("-i", "--include", dest="include",
-                  help="include extra types in FILE", metavar="FILE")
+              help="include extra types in FILE", metavar="FILE")
 op.add_option("-n", "--name", dest="name",
-                  help="place types in a dict named NAME", metavar="NAME")
+              help="place types in a dict named NAME", metavar="NAME")
 op.add_option("-a", "--arch-ptr-size", dest="arch_ptr_size", type=int, default=0,
-                  help="set architecture pointer size to SIZE in bytes", metavar="SIZE")
+              help="set architecture pointer size to SIZE in bytes", metavar="SIZE")
 (opts, args) = op.parse_args()
 
 if len(args) < 1:
     op.error("a PDB file is required")
 
-pdb = pdbparse.parse(args[0],fast_load=True)
+pdb = pdbparse.parse(args[0], fast_load=True)
 pdb.STREAM_TPI.load()
 pdb.STREAM_DBI.load()
 types = args[1:]
@@ -161,7 +171,8 @@ types = args[1:]
 if not opts.arch_ptr_size:
     dbg = pdb.STREAM_DBI
     if dbg.machine == 'IMAGE_FILE_MACHINE_UNKNOWN':
-        op.error("Image type cannot be determined, please specify an architecture pointer size (using -a)")
+        op.error(
+            "Image type cannot be determined, please specify an architecture pointer size (using -a)")
     elif dbg.machine == 'IMAGE_FILE_MACHINE_AMD64':
         ARCH_PTR_SIZE = 8
     elif dbg.machine == 'IMAGE_FILE_MACHINE_IA64':
@@ -173,12 +184,12 @@ else:
 
 
 if not types:
-    structs = [ t for t in pdb.STREAM_TPI.types.values()
-                if (t.leaf_type == 'LF_STRUCTURE' or t.leaf_type == "LF_UNION")
-                and not t.prop.fwdref ]
+    structs = [t for t in pdb.STREAM_TPI.types.values()
+               if (t.leaf_type == 'LF_STRUCTURE' or t.leaf_type == "LF_UNION")
+               and not t.prop.fwdref]
 else:
-    structs = [ pdb.STREAM_TPI.structures[t] for t in types
-                if not pdb.STREAM_TPI.structures[t].prop.fwdref ]
+    structs = [pdb.STREAM_TPI.structures[t] for t in types
+               if not pdb.STREAM_TPI.structures[t].prop.fwdref]
 
 if opts.name:
     print "%s = {" % opts.name
@@ -189,4 +200,3 @@ for s in structs:
 if opts.include:
     sys.stdout.write(open(opts.include).read())
 print "}"
-
