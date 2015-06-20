@@ -1166,6 +1166,13 @@ def struct_dependencies(lf):
     deps = set()
     members = [
         s for s in lf.fieldlist.substructs if s.leaf_type == "LF_MEMBER"]
+    nonmembers = [
+        s for s in lf.fieldlist.substructs if s.leaf_type != "LF_MEMBER"]
+
+    #if lf.name == '_EXCEPTION_REGISTRATION_RECORD':
+    #    print "lf.name == '_EXCEPTION_REGISTRATION_RECORD'"
+    #    import code  
+    #    code.interact(local=locals())
     for memb in members:
         base = get_basetype(memb.index)
         if isinstance(base, str):
@@ -1250,13 +1257,15 @@ if __name__ == "__main__":
                         type=int, choices=[4, 8], required=True)
     parser.add_argument("-d", "--declfilename", dest="declfilename",
                         help="Filename containing declaration names to filter on. Dependencies will be included.",
-                        metavar="FILE", default=False)
+                        metavar="FILE", default=None)
+
     parser.add_argument("-f", "--fwdrefs", dest="fwdrefs", action="store_true",
                         help="emit forward references", default=False)
 
     parser.add_argument("-g", "--gcc", dest="gcc",
                         help="emit code to assist in compilation under gcc (e.g. \"typedef uint32_t UINT32\")",
-                        action="store_true", default=False)
+                        action="store_true", default=True)
+                        
     parser.add_argument("-m", "--macroguard", dest="macroguard",
                         help="emit macroguards around output",
                         action="store_true", default=False)
@@ -1359,7 +1368,7 @@ if __name__ == "__main__":
             print_to_output("#endif")
             print_to_output("")
         # Reload the file without fwdrefs as it messes up type sizes
-        pdb = pdbparse.parse(args[0])
+        pdb = pdbparse.parse(opts.filename)
 
     structs = [s for s in pdb.streams[2].types.values()
                if (s.leaf_type in ("LF_STRUCTURE", "LF_UNION")
@@ -1383,6 +1392,12 @@ if __name__ == "__main__":
             action = False
             for n, deps in list(dep_graph.items()):
                 for dep_name in deps:
+                    if dep_name not in names.keys():
+                        # FIXME, if a object given is not in the pdb we need to 
+                        # says it gracefully
+                        # and remove it.
+                        print_to_output("// undefined %s"%dep_name)
+                        continue
                     if dep_name not in dep_graph.keys():
                         s = names[dep_name]
                         dep_graph[s.name] = struct_dependencies(s)
